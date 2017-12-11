@@ -8,11 +8,9 @@ using namespace std;
 using namespace Nan;
 using namespace v8;
 
-char* keypath;
 char* bufferOfKey;
 long sizeOfBufferOfKey;
 const int LEN_FLAG = 10;
-// printf("keypath = %s", keypath);
 
 char* join(char *a, char *b) {  
   char *c = (char *) malloc(strlen(a) + strlen(b) + 1); //局部变量，用malloc申请内存  
@@ -60,7 +58,7 @@ void Method(const Nan::FunctionCallbackInfo<v8::Value>& info) {
   info.GetReturnValue().Set(retval);
 }
 void Encode(const Nan::FunctionCallbackInfo<v8::Value>& info) {
-  printf(keypath, bufferOfKey);
+  // printf(keypath, bufferOfKey);
   Local<Value> argv = info[0];
   char* bufferOfFile;
   long sizeOfFile = 0;  // buffer长度
@@ -69,37 +67,41 @@ void Encode(const Nan::FunctionCallbackInfo<v8::Value>& info) {
     std::string name(*nan_string);
     const char* filepath = name.c_str();
     bufferOfFile = ReadFile(filepath, &sizeOfFile);  // 得到文件内容
-    // printf("bf in c++1", bufferOfFile);
-    // size = strlen(bufferOfFile);
   } else {
     bufferOfFile = node::Buffer::Data(argv);
-    // printf("bf in c++:", bufferOfFile);
     sizeOfFile = node::Buffer::Length(argv);
   }
 
   bufferOfFile = xor(bufferOfFile, sizeOfFile);
-
-  char* bufferResult = (char*) malloc(LEN_FLAG * 2 + 4 + sizeOfFile);
+  int sizeOfResult = LEN_FLAG * 2 + 4 + sizeOfFile;
+  // printf("sizeOfResult = %d ", sizeOfResult);
+  char* bufferResult = (char*) malloc(sizeOfResult);
   int writeIndex = 0;
   for (int i = 0; i<LEN_FLAG; i++) {
     short flag = sizeOfBufferOfKey + i;
-    char* flagChar = (char*)flag;
-    bufferResult[writeIndex++] = flagChar[0];
-    bufferResult[writeIndex++] = flagChar[1];
+    bufferResult[writeIndex++] = flag & 0xff;
+    bufferResult[writeIndex++] = (flag>>8)  & 0xff;
   }
   
+  int sizeOfBufferOfFile = (int)sizeOfFile;
 
-  info.GetReturnValue().Set(Nan::NewBuffer(bufferOfFile, sizeOfFile).ToLocalChecked());
+  bufferResult[writeIndex++] = sizeOfBufferOfFile & 0xff;
+  bufferResult[writeIndex++] = (sizeOfBufferOfFile>>8)  & 0xff;
+  bufferResult[writeIndex++] = (sizeOfBufferOfFile>>16) & 0xff;
+  bufferResult[writeIndex++] = (sizeOfBufferOfFile>>24) & 0xff;
+
+  for (int i = 0; i<sizeOfFile; i++, writeIndex++) {
+    bufferResult[writeIndex] = bufferOfFile[i];
+  }
+
+  info.GetReturnValue().Set(Nan::NewBuffer(bufferResult, sizeOfResult).ToLocalChecked());
+  // info.GetReturnValue().Set(Nan::NewBuffer(bufferOfFile, sizeOfBufferOfFile).ToLocalChecked());
 }
 
 void Init(v8::Local<v8::Object> exports) {
-  keypath = join(getcwd(NULL, 0), "/.key");
+  char* keypath = join(getcwd(NULL, 0), "/.key");
   bufferOfKey = ReadFile(keypath, &sizeOfBufferOfKey);
-  // printf(bufferOfKey);
-  printf("sizeOfBufferOfKey = %d", sizeOfBufferOfKey);
-  char* str = "a";
-  str[0] = -1;
-  printf(str, "\n");
+  
   exports->Set(Nan::New("hello").ToLocalChecked(),
                Nan::New<v8::FunctionTemplate>(Method)->GetFunction());
   
