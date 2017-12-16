@@ -1,6 +1,7 @@
 {
     "name": "addon_test",
     "dependencies": {
+        "int64-buffer": "^0.1.10",
         "nan": "^2.8.0"
     }
 }
