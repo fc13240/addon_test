@@ -26,6 +26,14 @@ const int INIT_SIZE = 10124;
 Local<Value> GetValue(Local<Object> obj, const char* key) {
   return Nan::Get(obj, Nan::New<String>(key).ToLocalChecked()).ToLocalChecked();
 }
+const char* ToStr(Local<Value> valStr) {
+  // Nan::Utf8String nan_string(valStr);
+  // std::string val_str(*nan_string);
+  // return val_str.c_str();
+  String::Utf8Value value(valStr);
+  return *value ? *value : "<string conversion failed>";
+}
+
 void ThrowError(Isolate* isolate, const char* msg) {
   isolate->ThrowException(Exception::TypeError(
     String::NewFromUtf8(isolate, msg)));
@@ -93,7 +101,7 @@ void WriteFloat(char* bf, float valFloat, int* offset) {
 }
 void WriteDouble(char* bf, double valDouble, int* offset) {
   printf("double val = %lf\n", valDouble);
-  unsigned int* val = (unsigned int*)(&valDouble); 
+  unsigned long long* val = (unsigned long long*)(&valDouble); 
 
   // bf[*offset] = *val & 0xff;
   // bf[*offset+1] = (*val>>8)  & 0xff;
@@ -115,68 +123,98 @@ void WriteDouble(char* bf, double valDouble, int* offset) {
   *offset += 8;
 
 }
+void WriteString(char* bf, char* valStr, int* offset) {
+  printf("str = %s\n", valStr);
+  int len = strlen(valStr);
+  WriteInt(bf, len, offset);
+  for (int i = 0; i < len; i++) {
+    bf[*offset+i] = valStr[i];
+  }
+  *offset += len;
+}
+
+void Write(char* bfResult, int* indexWrited, Local<Value> data, BYTE type, Local<Value> prop) {
+  switch(type) {
+    case TYPE_BYTE:
+      if (data->IsInt32()) {
+        long val_byte = data->NumberValue();
+        if (val_byte < -128 || val_byte > 127) {
+          // ThrowError(isolate, "not byte");
+        } else {
+          WriteByte(bfResult, val_byte, indexWrited);
+        }
+      } else {
+        // ThrowError(isolate, "not byte");
+      }
+      break;
+    case TYPE_BOOL:
+      WriteByte(bfResult, data->BooleanValue()?1: 0, indexWrited);
+      break;
+    case TYPE_INT16:
+      if (data->IsInt32()) {
+        int int16_val = data->Int32Value();
+        if (int16_val >= -32768 && int16_val <= 32767) {
+          WriteInt16(bfResult, int16_val, indexWrited);
+        } else {
+          // ThrowError(isolate, "not int16");
+        }
+      } else {
+        // ThrowError(isolate, "not int16");
+      }
+      break;
+    case TYPE_INT:
+      if (data->IsInt32()) {
+        WriteInt(bfResult, data->Int32Value(), indexWrited);
+        printf("int indexWrited = %d\n", indexWrited);
+      } else {
+        // ThrowError(isolate, "not int32");
+      }
+      break;
+    case TYPE_FLOAT:
+      if (data->IsNumber()) {
+        WriteFloat(bfResult, data->NumberValue(), indexWrited);
+      }
+      break;
+    case TYPE_DOUBLE:
+      if (data->IsNumber()) {
+        WriteDouble(bfResult, data->NumberValue(), indexWrited);
+      }
+      break;
+    case TYPE_LONG:
+      if (data->IsNumber()) {
+        WriteLong(bfResult, data->IntegerValue(), indexWrited);
+      }
+      break;
+    case TYPE_STRING:
+      if (data->IsString()) {
+        WriteString(bfResult, (char*)ToStr(data), indexWrited);
+      }
+      break;
+    case TYPE_OBJECT:
+      Local<Array> propArr = Local<Array>::Cast(prop);
+      for (unsigned int i = 0; i<propArr->Length(); i++) {
+          Local<Object> propVal = propArr->Get(i)->ToObject();
+          Local<Value> propOfProp = GetValue(propVal, "prop");
+          BYTE typeOfProp = GetValue(propVal, "type")->NumberValue();
+          const char* name = ToStr(GetValue(propVal, "name"));
+          printf("name = %s, type = %d\n", name, typeOfProp);
+          Local<Value> valOfData = GetValue(data->ToObject(), name);
+          Write(bfResult, indexWrited, valOfData, typeOfProp, propOfProp);
+      }
+      break;
+  }
+}
 void Create(const Nan::FunctionCallbackInfo<v8::Value>& info) {
   Isolate* isolate = info.GetIsolate();
   if (info.Length() == 2) {
     Local<Object> conf = info[0]->ToObject();
-    Local<Object> data = info[1]->ToObject();
     BYTE type = GetValue(conf, "type")->NumberValue();
+    Local<Value> prop = GetValue(conf, "prop");
     char* bfResult = (char *)malloc(INIT_SIZE);
-    // char bfResult[INIT_SIZE];
     int indexWrited = 0;
     printf("type = %d, val = %lld\n", type, info[1]->NumberValue());
-    switch(type) {
-      case TYPE_BYTE:
-        if (info[1]->IsInt32()) {
-          long val_byte = info[1]->NumberValue();
-          if (val_byte < -128 || val_byte > 127) {
-            ThrowError(isolate, "not byte");
-          } else {
-            WriteByte(bfResult, val_byte, &indexWrited);
-          }
-        } else {
-          ThrowError(isolate, "not byte");
-        }
-        break;
-      case TYPE_BOOL:
-        WriteByte(bfResult, info[1]->BooleanValue()?1: 0, &indexWrited);
-        break;
-      case TYPE_INT16:
-        if (info[1]->IsInt32()) {
-          int int16_val = info[1]->Int32Value();
-          if (int16_val >= -32768 && int16_val <= 32767) {
-            WriteInt16(bfResult, int16_val, &indexWrited);
-          } else {
-            ThrowError(isolate, "not int16");
-          }
-        } else {
-          ThrowError(isolate, "not int16");
-        }
-        break;
-      case TYPE_INT:
-        if (info[1]->IsInt32()) {
-          WriteInt(bfResult, info[1]->Int32Value(), &indexWrited);
-          printf("int indexWrited = %d\n", indexWrited);
-        } else {
-          ThrowError(isolate, "not int32");
-        }
-        break;
-      case TYPE_FLOAT:
-        if (info[1]->IsNumber()) {
-          WriteFloat(bfResult, info[1]->NumberValue(), &indexWrited);
-        }
-        break;
-      case TYPE_DOUBLE:
-        if (info[1]->IsNumber()) {
-          WriteDouble(bfResult, info[1]->NumberValue(), &indexWrited);
-        }
-        break;
-      case TYPE_LONG:
-        if (info[1]->IsNumber()) {
-          WriteLong(bfResult, info[1]->IntegerValue(), &indexWrited);
-        }
-        break;
-    }
+    
+    Write(bfResult, &indexWrited, info[1], type, prop);
     // info.GetReturnValue().Set(Nan::New<Boolean>(type));
     info.GetReturnValue().Set(Nan::NewBuffer(bfResult, indexWrited).ToLocalChecked());
     

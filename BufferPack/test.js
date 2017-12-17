@@ -72,17 +72,56 @@ TYPE_BUFFER = 103;         // Buffer 对象
 // console.log('====');
 // console.log(result);
 
-let test = Buffer.from([0x1f, 0x85, 0xeb , 0x51 , 0x00 , 0x00 , 0x00 , 0x00]);
-console.log(test.readDoubleLE(0));
-let bf = Buffer.alloc(8);
-let val_double = 3.14;
-bf.writeDoubleLE(val_double);
-console.log(bf, bf.readDoubleLE(0));
+// let test = Buffer.from([0x1f, 0x85, 0xeb , 0x51 , 0x00 , 0x00 , 0x00 , 0x00]);
+// console.log(test.readDoubleLE(0));
+// let bf = Buffer.alloc(8);
+// let val_double = 3.14;
+// bf.writeDoubleLE(val_double);
+// console.log(bf, bf.readDoubleLE(0));
+// let result = BufferPack.create({
+//     type: TYPE_DOUBLE
+// }, val_double);
+// console.log('====');
+// console.log(result);
+
+// let val_str = 'hello中文abc';
+// let bf = Buffer.from(val_str);
+// console.log(bf);
+// let result = BufferPack.create({
+//     type: TYPE_STRING
+// }, val_str);
+// console.log('====');
+// console.log(result, result.toString());
+
+let val_str = 'hello中文abc';
+let bf = Buffer.alloc(20);
+bf.writeInt32LE(10);
+console.log(bf, Buffer.from('test'));
 let result = BufferPack.create({
-    type: TYPE_DOUBLE
-}, val_double);
+    type: TYPE_OBJECT,
+    prop: [{
+        type: TYPE_INT,
+        name: 'age'
+    }, {
+        type: TYPE_STRING,
+        name: 'name'
+    }, {
+        name: 'obj',
+        type: TYPE_OBJECT,
+        prop: [{
+            type: TYPE_BOOL,
+            name: 'flag'
+        }]
+    }]
+}, {
+    name: 'test',
+    age: 10,
+    obj: {
+        flag: true
+    }
+});
 console.log('====');
-console.log(result);
+console.log(result, result.toString());
 
 // try {
 //     BufferPack.create();
