@@ -39,7 +39,7 @@ void ThrowError(Isolate* isolate, const char* msg) {
     String::NewFromUtf8(isolate, msg)));
 }
 void WriteInt(char* bf, int val, int* offset) {
-  printf("%d %d %d %d\n", strlen(bf), *offset + 4, sizeof(bf), sizeof(*bf));
+  // printf("%d %d %d %d\n", strlen(bf), *offset + 4, sizeof(bf), sizeof(*bf));
   // int size = strlen(bf);
   // if (size < *offset + 4) {
   //   char* bfNew = (char *)malloc(size + INIT_SIZE);
@@ -51,21 +51,16 @@ void WriteInt(char* bf, int val, int* offset) {
   bf[*offset+2] = (val>>16) & 0xff;
   bf[*offset+3] = (val>>24) & 0xff;
 
-  printf("writeInt1\n");
   *offset += 4;
-  printf("writeInt\n");
 }
 void WriteInt16(char* bf, int val, int* offset) {
   
   bf[*offset] = val & 0xff;
   bf[*offset+1] = (val>>8)  & 0xff;
 
-  printf("WriteInt161\n");
   *offset += 2;
-  printf("WriteInt16\n");
 }
 void WriteLong(char* bf, long long val, int* offset) {
-  printf("long val = %lld\n", val);
   bf[*offset] = val & 0xff;
   bf[*offset+1] = (val>>8)  & 0xff;
   bf[*offset+2] = (val>>16) & 0xff;
@@ -100,7 +95,6 @@ void WriteFloat(char* bf, float valFloat, int* offset) {
   *offset += 4;
 }
 void WriteDouble(char* bf, double valDouble, int* offset) {
-  printf("double val = %lf\n", valDouble);
   unsigned long long* val = (unsigned long long*)(&valDouble); 
 
   // bf[*offset] = *val & 0xff;
@@ -124,13 +118,19 @@ void WriteDouble(char* bf, double valDouble, int* offset) {
 
 }
 void WriteString(char* bf, char* valStr, int* offset) {
-  printf("str = %s\n", valStr);
   int len = strlen(valStr);
   WriteInt(bf, len, offset);
   for (int i = 0; i < len; i++) {
     bf[*offset+i] = valStr[i];
   }
   *offset += len;
+}
+void WriteBuffer(char* bf, char* bfWrite, long size, int* offset) {
+  WriteInt16(bf, size, offset);
+  for (unsigned int i = 0; i<size; i++) {
+    bf[*offset+i] = bfWrite[i];
+  }
+  *offset += size;
 }
 
 void Write(char* bfResult, int* indexWrited, Local<Value> data, BYTE type, Local<Value> prop) {
@@ -165,7 +165,6 @@ void Write(char* bfResult, int* indexWrited, Local<Value> data, BYTE type, Local
     case TYPE_INT:
       if (data->IsInt32()) {
         WriteInt(bfResult, data->Int32Value(), indexWrited);
-        printf("int indexWrited = %d\n", indexWrited);
       } else {
         // ThrowError(isolate, "not int32");
       }
@@ -191,15 +190,58 @@ void Write(char* bfResult, int* indexWrited, Local<Value> data, BYTE type, Local
       }
       break;
     case TYPE_OBJECT:
-      Local<Array> propArr = Local<Array>::Cast(prop);
-      for (unsigned int i = 0; i<propArr->Length(); i++) {
-          Local<Object> propVal = propArr->Get(i)->ToObject();
-          Local<Value> propOfProp = GetValue(propVal, "prop");
-          BYTE typeOfProp = GetValue(propVal, "type")->NumberValue();
-          const char* name = ToStr(GetValue(propVal, "name"));
-          printf("name = %s, type = %d\n", name, typeOfProp);
-          Local<Value> valOfData = GetValue(data->ToObject(), name);
-          Write(bfResult, indexWrited, valOfData, typeOfProp, propOfProp);
+      if (prop->IsArray()) {
+        Local<Array> propArr = Local<Array>::Cast(prop);
+        for (unsigned int i = 0; i<propArr->Length(); i++) {
+            Local<Object> propVal = propArr->Get(i)->ToObject();
+            Local<Value> propOfProp = GetValue(propVal, "prop");
+            BYTE typeOfProp = GetValue(propVal, "type")->NumberValue();
+            const char* name = ToStr(GetValue(propVal, "name"));
+            // printf("name = %s, type = %d\n", name, typeOfProp);
+            Local<Value> valOfData = GetValue(data->ToObject(), name);
+            Write(bfResult, indexWrited, valOfData, typeOfProp, propOfProp);
+        }
+      }
+      break;
+    case TYPE_ARRAY:
+      if (data->IsArray()) {
+        Local<Array> dataArr = Local<Array>::Cast(data);
+        int lenDataArr = dataArr->Length();
+        WriteInt16(bfResult, lenDataArr, indexWrited);
+
+        BYTE typeOfData = GetValue(prop->ToObject(), "type")->NumberValue();
+        for (unsigned int i = 0; i<lenDataArr; i++) {
+          Write(bfResult, indexWrited, dataArr->Get(i), typeOfData, prop);
+        }
+      }
+      break;
+    case TYPE_ARRAY_BOJECT:
+      if (data->IsArray()) {
+        Local<Array> dataArr = Local<Array>::Cast(data);
+        int lenDataArr = dataArr->Length();
+        WriteInt16(bfResult, lenDataArr, indexWrited);
+
+        Local<Array> propArr = Local<Array>::Cast(prop);
+        int lenPropArr = propArr->Length();
+        for (unsigned int i = 0; i<lenDataArr; i++) {
+          Local<Object> val = dataArr->Get(i)->ToObject();
+          if (val->IsObject()) {
+            for (unsigned int iProp = 0; iProp<lenPropArr; iProp++) {
+              Local<Object> p = propArr->Get(iProp)->ToObject();
+              BYTE t = GetValue(p, "type")->NumberValue();
+              Local<Value> v = GetValue(val, ToStr(GetValue(p, "name")));
+              Local<Value> pp = GetValue(p, "prop");
+              Write(bfResult, indexWrited, v, t, pp);
+            }
+          }
+        }
+      }
+      break;
+    case TYPE_BUFFER:
+      if (data->IsUint8Array()) {
+        char* bf = node::Buffer::Data(data);
+        long sizeOfBf = node::Buffer::Length(data);
+        WriteBuffer(bfResult, bf, sizeOfBf, indexWrited);
       }
       break;
   }
@@ -212,15 +254,11 @@ void Create(const Nan::FunctionCallbackInfo<v8::Value>& info) {
     Local<Value> prop = GetValue(conf, "prop");
     char* bfResult = (char *)malloc(INIT_SIZE);
     int indexWrited = 0;
-    printf("type = %d, val = %lld\n", type, info[1]->NumberValue());
+    // printf("type = %d, val = %lld\n", type, info[1]->NumberValue());
     
     Write(bfResult, &indexWrited, info[1], type, prop);
     // info.GetReturnValue().Set(Nan::New<Boolean>(type));
     info.GetReturnValue().Set(Nan::NewBuffer(bfResult, indexWrited).ToLocalChecked());
-    
-    // long long value = info[1]->IntegerValue();
-    // Local<Number> retval = Number::New(isolate, value);
-    // info.GetReturnValue().Set(retval);
   } else {
     ThrowError(isolate, "param error");
   }

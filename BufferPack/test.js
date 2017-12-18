@@ -93,35 +93,62 @@ TYPE_BUFFER = 103;         // Buffer 对象
 // console.log('====');
 // console.log(result, result.toString());
 
-let val_str = 'hello中文abc';
-let bf = Buffer.alloc(20);
-bf.writeInt32LE(10);
-console.log(bf, Buffer.from('test'));
+// let val_str = 'hello中文abc';
+// let bf = Buffer.alloc(20);
+// bf.writeInt32LE(10);
+// console.log(bf, Buffer.from('test'));
+// let result = BufferPack.create({
+//     type: TYPE_OBJECT,
+//     prop: [{
+//         type: TYPE_INT,
+//         name: 'age'
+//     }, {
+//         type: TYPE_STRING,
+//         name: 'name'
+//     }, {
+//         name: 'obj',
+//         type: TYPE_OBJECT,
+//         prop: [{
+//             type: TYPE_BOOL,
+//             name: 'flag'
+//         }]
+//     }]
+// }, {
+//     name: 'test',
+//     age: 10,
+//     obj: {
+//         flag: true
+//     }
+// });
+// console.log('====');
+// console.log(result, result.toString());
+
 let result = BufferPack.create({
-    type: TYPE_OBJECT,
-    prop: [{
-        type: TYPE_INT,
-        name: 'age'
-    }, {
-        type: TYPE_STRING,
-        name: 'name'
-    }, {
-        name: 'obj',
-        type: TYPE_OBJECT,
-        prop: [{
-            type: TYPE_BOOL,
-            name: 'flag'
-        }]
-    }]
-}, {
-    name: 'test',
-    age: 10,
-    obj: {
-        flag: true
+    type: TYPE_ARRAY,
+    prop: {
+        type: TYPE_INT
     }
-});
-console.log('====');
-console.log(result, result.toString());
+}, [1,2,3, 4]);
+console.log(result);
+
+console.log('=====');
+let result_arr_obj = BufferPack.create({
+    type: TYPE_ARRAY_OBJECT,
+    prop: [{
+        name: 'name',
+        type: TYPE_STRING
+    }, {
+        name: 'age',
+        type: TYPE_INT
+    }]
+}, [{
+    name: 'one',
+    age: 10
+}, {
+    name: 'two',
+    age: 11
+}]);
+console.log(result_arr_obj);
 
 // try {
 //     BufferPack.create();
