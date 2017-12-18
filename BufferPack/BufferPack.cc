@@ -38,7 +38,7 @@ void ThrowError(Isolate* isolate, const char* msg) {
   isolate->ThrowException(Exception::TypeError(
     String::NewFromUtf8(isolate, msg)));
 }
-void WriteInt(char* bf, int val, int* offset) {
+void WriteInt(char* bf, int* offset, int val) {
   // printf("%d %d %d %d\n", strlen(bf), *offset + 4, sizeof(bf), sizeof(*bf));
   // int size = strlen(bf);
   // if (size < *offset + 4) {
@@ -53,14 +53,14 @@ void WriteInt(char* bf, int val, int* offset) {
 
   *offset += 4;
 }
-void WriteInt16(char* bf, int val, int* offset) {
+void WriteInt16(char* bf, int* offset, int val) {
   
   bf[*offset] = val & 0xff;
   bf[*offset+1] = (val>>8)  & 0xff;
 
   *offset += 2;
 }
-void WriteLong(char* bf, long long val, int* offset) {
+void WriteLong(char* bf, int* offset, long long val) {
   bf[*offset] = val & 0xff;
   bf[*offset+1] = (val>>8)  & 0xff;
   bf[*offset+2] = (val>>16) & 0xff;
@@ -81,11 +81,11 @@ void WriteLong(char* bf, long long val, int* offset) {
   // *offset += 8;
 
 }
-void WriteByte(char* bf, int val, int* offset) {
+void WriteByte(char* bf, int* offset, int val) {
   bf[*offset] = val & 0xff;
   *offset += 1;
 }
-void WriteFloat(char* bf, float valFloat, int* offset) {
+void WriteFloat(char* bf, int* offset, float valFloat) {
   unsigned int* val = (unsigned int*)(&valFloat); 
   bf[*offset] = *val & 0xff;
   bf[*offset+1] = (*val>>8)  & 0xff;
@@ -94,7 +94,7 @@ void WriteFloat(char* bf, float valFloat, int* offset) {
 
   *offset += 4;
 }
-void WriteDouble(char* bf, double valDouble, int* offset) {
+void WriteDouble(char* bf, int* offset, double valDouble) {
   unsigned long long* val = (unsigned long long*)(&valDouble); 
 
   // bf[*offset] = *val & 0xff;
@@ -117,16 +117,16 @@ void WriteDouble(char* bf, double valDouble, int* offset) {
   *offset += 8;
 
 }
-void WriteString(char* bf, char* valStr, int* offset) {
+void WriteString(char* bf, int* offset, char* valStr) {
   int len = strlen(valStr);
-  WriteInt(bf, len, offset);
+  WriteInt(bf, offset, len);
   for (int i = 0; i < len; i++) {
     bf[*offset+i] = valStr[i];
   }
   *offset += len;
 }
-void WriteBuffer(char* bf, char* bfWrite, long size, int* offset) {
-  WriteInt16(bf, size, offset);
+void WriteBuffer(char* bf, int* offset, char* bfWrite, long size) {
+  WriteInt16(bf, offset, size);
   for (unsigned int i = 0; i<size; i++) {
     bf[*offset+i] = bfWrite[i];
   }
@@ -141,20 +141,20 @@ void Write(char* bfResult, int* indexWrited, Local<Value> data, BYTE type, Local
         if (val_byte < -128 || val_byte > 127) {
           // ThrowError(isolate, "not byte");
         } else {
-          WriteByte(bfResult, val_byte, indexWrited);
+          WriteByte(bfResult, indexWrited, val_byte);
         }
       } else {
         // ThrowError(isolate, "not byte");
       }
       break;
     case TYPE_BOOL:
-      WriteByte(bfResult, data->BooleanValue()?1: 0, indexWrited);
+      WriteByte(bfResult, indexWrited, data->BooleanValue()?1: 0);
       break;
     case TYPE_INT16:
       if (data->IsInt32()) {
         int int16_val = data->Int32Value();
         if (int16_val >= -32768 && int16_val <= 32767) {
-          WriteInt16(bfResult, int16_val, indexWrited);
+          WriteInt16(bfResult, indexWrited, int16_val);
         } else {
           // ThrowError(isolate, "not int16");
         }
@@ -164,29 +164,29 @@ void Write(char* bfResult, int* indexWrited, Local<Value> data, BYTE type, Local
       break;
     case TYPE_INT:
       if (data->IsInt32()) {
-        WriteInt(bfResult, data->Int32Value(), indexWrited);
+        WriteInt(bfResult, indexWrited, data->Int32Value());
       } else {
         // ThrowError(isolate, "not int32");
       }
       break;
     case TYPE_FLOAT:
       if (data->IsNumber()) {
-        WriteFloat(bfResult, data->NumberValue(), indexWrited);
+        WriteFloat(bfResult, indexWrited, data->NumberValue());
       }
       break;
     case TYPE_DOUBLE:
       if (data->IsNumber()) {
-        WriteDouble(bfResult, data->NumberValue(), indexWrited);
+        WriteDouble(bfResult, indexWrited, data->NumberValue());
       }
       break;
     case TYPE_LONG:
       if (data->IsNumber()) {
-        WriteLong(bfResult, data->IntegerValue(), indexWrited);
+        WriteLong(bfResult, indexWrited, data->IntegerValue());
       }
       break;
     case TYPE_STRING:
       if (data->IsString()) {
-        WriteString(bfResult, (char*)ToStr(data), indexWrited);
+        WriteString(bfResult, indexWrited, (char*)ToStr(data));
       }
       break;
     case TYPE_OBJECT:
@@ -207,7 +207,7 @@ void Write(char* bfResult, int* indexWrited, Local<Value> data, BYTE type, Local
       if (data->IsArray()) {
         Local<Array> dataArr = Local<Array>::Cast(data);
         int lenDataArr = dataArr->Length();
-        WriteInt16(bfResult, lenDataArr, indexWrited);
+        WriteInt16(bfResult, indexWrited, lenDataArr);
 
         BYTE typeOfData = GetValue(prop->ToObject(), "type")->NumberValue();
         for (unsigned int i = 0; i<lenDataArr; i++) {
@@ -219,7 +219,7 @@ void Write(char* bfResult, int* indexWrited, Local<Value> data, BYTE type, Local
       if (data->IsArray()) {
         Local<Array> dataArr = Local<Array>::Cast(data);
         int lenDataArr = dataArr->Length();
-        WriteInt16(bfResult, lenDataArr, indexWrited);
+        WriteInt16(bfResult, indexWrited, lenDataArr);
 
         Local<Array> propArr = Local<Array>::Cast(prop);
         int lenPropArr = propArr->Length();
@@ -241,7 +241,7 @@ void Write(char* bfResult, int* indexWrited, Local<Value> data, BYTE type, Local
       if (data->IsUint8Array()) {
         char* bf = node::Buffer::Data(data);
         long sizeOfBf = node::Buffer::Length(data);
-        WriteBuffer(bfResult, bf, sizeOfBf, indexWrited);
+        WriteBuffer(bfResult, indexWrited, bf, sizeOfBf);
       }
       break;
   }
