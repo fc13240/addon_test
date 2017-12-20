@@ -21,6 +21,8 @@ const BYTE TYPE_OBJECT = 100;
 const BYTE TYPE_ARRAY = 101;
 const BYTE TYPE_ARRAY_BOJECT = 102;
 const BYTE TYPE_BUFFER = 103;
+const long long BIT32 = 4294967296;
+const long long BIT24 = 16777216;
 
 const int INIT_SIZE = 10124;
 Local<Value> GetValue(Local<Object> obj, const char* key) {
@@ -285,9 +287,69 @@ void Create(const Nan::FunctionCallbackInfo<v8::Value>& info) {
   }
 }
 
+Local<Value> Read(char* bf, int* indexReaded, BYTE type, Local<Value> prop) {
+  Local<Value> result;
+  switch(type) {
+    case TYPE_BYTE:
+      result = Nan::New(bf[*indexReaded]);
+      *indexReaded += 1;
+      break;
+    case TYPE_INT16:
+      result = Nan::New(bf[*indexReaded] + (bf[*indexReaded + 1]<<8));
+      *indexReaded += 2;
+      break;
+    case TYPE_INT:
+      result = Nan::New(
+        (bf[*indexReaded] & 0xff)
+        + ((bf[*indexReaded + 1]<<8) & 0xffff)
+        + ((bf[*indexReaded + 2]<<16) & 0xffffff)
+        + ((bf[*indexReaded + 3]<<24) & 0xffffffff)
+      );
+      *indexReaded += 4;
+      break;
+    case TYPE_LONG:
+      {
+        int high = (bf[*indexReaded + 4] & 0xff)
+          + ((bf[*indexReaded + 5]<<8) & 0xffff)
+          + ((bf[*indexReaded + 6]<<16) & 0xffffff)
+          + ((bf[*indexReaded + 7]<<24) & 0xffffffff);
+        int low = (bf[*indexReaded] & 0xff)
+          + ((bf[*indexReaded + 1]<<8) & 0xffff)
+          + ((bf[*indexReaded + 2]<<16) & 0xffffff)
+          + ((bf[*indexReaded + 3]<<24) & 0xffffffff);
+        
+        double val_long = high * BIT32 + low;
+        result = Nan::New(val_long);
+        *indexReaded += 8;
+      }
+      break;
+    case TYPE_DOUBLE:
+      
+      break;
+  }
+  return result;
+}
+void Parse(const Nan::FunctionCallbackInfo<v8::Value>& info) {
+  Isolate* isolate = info.GetIsolate();
+  if (info.Length() == 2) {
+    Local<Object> conf = info[0]->ToObject();
+    BYTE type = GetValue(conf, "type")->NumberValue();
+    Local<Value> prop = GetValue(conf, "prop");
+    int indexReaded = 0;
+    char* bf = node::Buffer::Data(info[1]);
+    Local<Value> result = Read(bf, &indexReaded, type, prop);
+
+    info.GetReturnValue().Set(result);
+  } else {
+    ThrowError(isolate, "param error");
+  }
+}
+
 void Init(v8::Local<v8::Object> exports) {
   exports->Set(Nan::New("create").ToLocalChecked(),
                Nan::New<v8::FunctionTemplate>(Create)->GetFunction());
+  exports->Set(Nan::New("parse").ToLocalChecked(),
+               Nan::New<v8::FunctionTemplate>(Parse)->GetFunction());               
 }
 
 NODE_MODULE(NODE_GYP_MODULE_NAME, Init)

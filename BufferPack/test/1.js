@@ -44,6 +44,18 @@ describe('#create', () => {
         // console.log(b);
         expect(b).deep.equal(a);
     });
+    it('long', () => {
+        let conf = {
+            type: TYPE_LONG
+        }
+
+        let val = 1513783069482;
+        let a = new BufferPackLib(conf).create(val);
+        let b = BufferPackAddon.create(conf, val);
+        // console.log(a);
+        // console.log(b);
+        expect(b).deep.equal(a);
+    });
     it('byte', () => {
         let conf = {
             type: TYPE_BYTE
@@ -176,5 +188,71 @@ describe('#create', () => {
         // console.log(a);
         // console.log(b);
         expect(b).deep.equal(a);
+    });
+});
+describe('#parse', () => {
+    it('byte', () => {
+        let conf = {
+            type: TYPE_BYTE
+        }
+
+        let val = 100;
+        let bf = new BufferPackLib(conf).create(val);
+        let a = new BufferPackLib(conf).parse(bf);
+        let b = BufferPackAddon.parse(conf, bf);
+        console.log(a);
+        console.log(b);
+    });
+    it('int16', () => {
+        let conf = {
+            type: TYPE_INT16
+        }
+
+        let val = 300;
+        let bf = new BufferPackLib(conf).create(val);
+        let a = new BufferPackLib(conf).parse(bf);
+        let b = BufferPackAddon.parse(conf, bf);
+        console.log(bf);
+        console.log(a);
+        console.log(b);
+    });
+    it('int', () => {
+        let conf = {
+            type: TYPE_INT
+        }
+
+        let val = 2147483647;
+        let bf = new BufferPackLib(conf).create(val);
+        let a = new BufferPackLib(conf).parse(bf);
+        let b = BufferPackAddon.parse(conf, bf);
+        console.log(bf);
+        console.log(a);
+        console.log(b);
+    });
+    it('long', () => {
+        let conf = {
+            type: TYPE_LONG
+        }
+
+        let val = 1513783069482;
+        let bf = new BufferPackLib(conf).create(val);
+        let a = new BufferPackLib(conf).parse(bf);
+        let b = BufferPackAddon.parse(conf, bf);
+        console.log(bf);
+        console.log(a);
+        console.log(b);
+    });
+    it('double', () => {
+        let conf = {
+            type: TYPE_DOUBLE
+        }
+
+        let val = 1513783069482;
+        let bf = new BufferPackLib(conf).create(val);
+        let a = new BufferPackLib(conf).parse(bf);
+        let b = BufferPackAddon.parse(conf, bf);
+        console.log(bf);
+        console.log(a);
+        console.log(b);
     });
 });
