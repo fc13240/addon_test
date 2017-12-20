@@ -30,8 +30,14 @@ const char* ToStr(Local<Value> valStr) {
   // Nan::Utf8String nan_string(valStr);
   // std::string val_str(*nan_string);
   // return val_str.c_str();
-  String::Utf8Value value(valStr);
-  return *value ? *value : "<string conversion failed>";
+  Nan::Utf8String nan_string(valStr);
+  std::string name(*nan_string);
+  const char* filepath = name.c_str();
+  // printf("s1 = %s\n", filepath);
+  return filepath;
+
+  // String::Utf8Value value(valStr);
+  // return *value ? *value : "<string conversion failed>";
 }
 
 void ThrowError(Isolate* isolate, const char* msg) {
@@ -117,8 +123,9 @@ void WriteDouble(char* bf, int* offset, double valDouble) {
   *offset += 8;
 
 }
-void WriteString(char* bf, int* offset, char* valStr) {
+void WriteString(char* bf, int* offset, const char* valStr) {
   int len = strlen(valStr);
+  // printf("str = %s, len = %d\n", valStr, len);
   WriteInt(bf, offset, len);
   for (int i = 0; i < len; i++) {
     bf[*offset+i] = valStr[i];
@@ -186,7 +193,14 @@ void Write(char* bfResult, int* indexWrited, Local<Value> data, BYTE type, Local
       break;
     case TYPE_STRING:
       if (data->IsString()) {
-        WriteString(bfResult, indexWrited, (char*)ToStr(data));
+        Nan::Utf8String nan_string(data);
+        std::string name(*nan_string);
+        const char* val_str = name.c_str();
+
+        // const char* val_str = ToStr(data);
+        // printf("s2 = %s, s3 = %s\n", val_str, filepath);
+        // WriteString(bfResult, indexWrited, );
+        WriteString(bfResult, indexWrited, val_str);
       }
       break;
     case TYPE_OBJECT:
@@ -196,7 +210,10 @@ void Write(char* bfResult, int* indexWrited, Local<Value> data, BYTE type, Local
             Local<Object> propVal = propArr->Get(i)->ToObject();
             Local<Value> propOfProp = GetValue(propVal, "prop");
             BYTE typeOfProp = GetValue(propVal, "type")->NumberValue();
-            const char* name = ToStr(GetValue(propVal, "name"));
+            Local<Value> nameOfProp = GetValue(propVal, "name");
+            Nan::Utf8String nan_string(nameOfProp);
+            std::string nameStr(*nan_string);
+            const char* name = nameStr.c_str();
             // printf("name = %s, type = %d\n", name, typeOfProp);
             Local<Value> valOfData = GetValue(data->ToObject(), name);
             Write(bfResult, indexWrited, valOfData, typeOfProp, propOfProp);
@@ -229,7 +246,11 @@ void Write(char* bfResult, int* indexWrited, Local<Value> data, BYTE type, Local
             for (unsigned int iProp = 0; iProp<lenPropArr; iProp++) {
               Local<Object> p = propArr->Get(iProp)->ToObject();
               BYTE t = GetValue(p, "type")->NumberValue();
-              Local<Value> v = GetValue(val, ToStr(GetValue(p, "name")));
+              Local<Value> nameOfP = GetValue(p, "name");
+              Nan::Utf8String nan_string(nameOfP);
+              std::string nameStr(*nan_string);
+              const char* name = nameStr.c_str();
+              Local<Value> v = GetValue(val, name);
               Local<Value> pp = GetValue(p, "prop");
               Write(bfResult, indexWrited, v, t, pp);
             }
