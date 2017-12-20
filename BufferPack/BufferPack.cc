@@ -287,9 +287,35 @@ void Create(const Nan::FunctionCallbackInfo<v8::Value>& info) {
   }
 }
 
+int ReadInt(char* bf, int* indexReaded) {
+  int result = (bf[*indexReaded] & 0xff)
+            + ((bf[*indexReaded + 1]<<8) & 0xffff)
+            + ((bf[*indexReaded + 2]<<16) & 0xffffff)
+            + ((bf[*indexReaded + 3]<<24) & 0xffffffff);
+  *indexReaded += 4;
+  return result;
+}
+long long ReadLong(char* bf, int* indexReaded) {
+  int high = (bf[*indexReaded + 4] & 0xff)
+    + ((bf[*indexReaded + 5]<<8) & 0xffff)
+    + ((bf[*indexReaded + 6]<<16) & 0xffffff)
+    + ((bf[*indexReaded + 7]<<24) & 0xffffffff);
+  int low = (bf[*indexReaded] & 0xff)
+    + ((bf[*indexReaded + 1]<<8) & 0xffff)
+    + ((bf[*indexReaded + 2]<<16) & 0xffffff)
+    + ((bf[*indexReaded + 3]<<24) & 0xffffffff);
+  
+  long long val_long = high * BIT32 + low;
+  *indexReaded += 4;
+  return val_long;
+}
 Local<Value> Read(char* bf, int* indexReaded, BYTE type, Local<Value> prop) {
   Local<Value> result;
   switch(type) {
+    case TYPE_BOOL:
+      result = Nan::New(bf[*indexReaded] == 1);
+      *indexReaded += 1;
+      break;
     case TYPE_BYTE:
       result = Nan::New(bf[*indexReaded]);
       *indexReaded += 1;
@@ -299,32 +325,28 @@ Local<Value> Read(char* bf, int* indexReaded, BYTE type, Local<Value> prop) {
       *indexReaded += 2;
       break;
     case TYPE_INT:
-      result = Nan::New(
-        (bf[*indexReaded] & 0xff)
-        + ((bf[*indexReaded + 1]<<8) & 0xffff)
-        + ((bf[*indexReaded + 2]<<16) & 0xffffff)
-        + ((bf[*indexReaded + 3]<<24) & 0xffffffff)
-      );
-      *indexReaded += 4;
+      result = Nan::New(ReadInt(bf, indexReaded));
       break;
     case TYPE_LONG:
       {
-        int high = (bf[*indexReaded + 4] & 0xff)
-          + ((bf[*indexReaded + 5]<<8) & 0xffff)
-          + ((bf[*indexReaded + 6]<<16) & 0xffffff)
-          + ((bf[*indexReaded + 7]<<24) & 0xffffffff);
-        int low = (bf[*indexReaded] & 0xff)
-          + ((bf[*indexReaded + 1]<<8) & 0xffff)
-          + ((bf[*indexReaded + 2]<<16) & 0xffffff)
-          + ((bf[*indexReaded + 3]<<24) & 0xffffffff);
-        
-        double val_long = high * BIT32 + low;
+        double val_long = ReadLong(bf, indexReaded);
         result = Nan::New(val_long);
-        *indexReaded += 8;
+      }
+      break;
+    case TYPE_FLOAT:
+      {
+        int val_int = ReadInt(bf, indexReaded);
+        float* f = (float*)(&val_int);
+        result = Nan::New(*f);
       }
       break;
     case TYPE_DOUBLE:
-      
+      {
+        long long val_long = ReadLong(bf, indexReaded);
+        double* p_double = (double*)(&val_long);
+        result = Nan::New(*p_double);
+        *indexReaded += 8;
+      }
       break;
   }
   return result;

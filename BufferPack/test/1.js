@@ -191,6 +191,19 @@ describe('#create', () => {
     });
 });
 describe('#parse', () => {
+    it('bool', () => {
+        let conf = {
+            type: TYPE_BOOL
+        }
+
+        let val = true;
+        let bf = new BufferPackLib(conf).create(val);
+        let a = new BufferPackLib(conf).parse(bf);
+        let b = BufferPackAddon.parse(conf, bf);
+        // console.log(a);
+        // console.log(b);
+        expect(a).equal(b);
+    });
     it('byte', () => {
         let conf = {
             type: TYPE_BYTE
@@ -200,8 +213,9 @@ describe('#parse', () => {
         let bf = new BufferPackLib(conf).create(val);
         let a = new BufferPackLib(conf).parse(bf);
         let b = BufferPackAddon.parse(conf, bf);
-        console.log(a);
-        console.log(b);
+        // console.log(a);
+        // console.log(b);
+        expect(a).equal(b);
     });
     it('int16', () => {
         let conf = {
@@ -212,9 +226,9 @@ describe('#parse', () => {
         let bf = new BufferPackLib(conf).create(val);
         let a = new BufferPackLib(conf).parse(bf);
         let b = BufferPackAddon.parse(conf, bf);
-        console.log(bf);
-        console.log(a);
-        console.log(b);
+        // console.log(a);
+        // console.log(b);
+        expect(a).equal(b);
     });
     it('int', () => {
         let conf = {
@@ -225,9 +239,9 @@ describe('#parse', () => {
         let bf = new BufferPackLib(conf).create(val);
         let a = new BufferPackLib(conf).parse(bf);
         let b = BufferPackAddon.parse(conf, bf);
-        console.log(bf);
-        console.log(a);
-        console.log(b);
+        // console.log(a);
+        // console.log(b);
+        expect(a).equal(b);
     });
     it('long', () => {
         let conf = {
@@ -238,21 +252,34 @@ describe('#parse', () => {
         let bf = new BufferPackLib(conf).create(val);
         let a = new BufferPackLib(conf).parse(bf);
         let b = BufferPackAddon.parse(conf, bf);
-        console.log(bf);
-        console.log(a);
-        console.log(b);
+        // console.log(a);
+        // console.log(b);
+        expect(a).equal(b);
+    });
+    it('float', () => {
+        let conf = {
+            type: TYPE_FLOAT
+        }
+
+        let val = 3.14;
+        let bf = new BufferPackLib(conf).create(val);
+        let a = new BufferPackLib(conf).parse(bf);
+        let b = BufferPackAddon.parse(conf, bf);
+        // console.log(a);
+        // console.log(b);
+        expect(a).equal(b);
     });
     it('double', () => {
         let conf = {
             type: TYPE_DOUBLE
         }
 
-        let val = 1513783069482;
+        let val = 3.14;
         let bf = new BufferPackLib(conf).create(val);
         let a = new BufferPackLib(conf).parse(bf);
         let b = BufferPackAddon.parse(conf, bf);
-        console.log(bf);
-        console.log(a);
-        console.log(b);
+        // console.log(a);
+        // console.log(b);
+        expect(a).equal(b);
     });
 });
