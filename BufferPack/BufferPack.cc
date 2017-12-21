@@ -199,9 +199,6 @@ void Write(char* bfResult, int* indexWrited, Local<Value> data, BYTE type, Local
         std::string name(*nan_string);
         const char* val_str = name.c_str();
 
-        // const char* val_str = ToStr(data);
-        // printf("s2 = %s, s3 = %s\n", val_str, filepath);
-        // WriteString(bfResult, indexWrited, );
         WriteString(bfResult, indexWrited, val_str);
       }
       break;
@@ -310,6 +307,7 @@ long long ReadLong(char* bf, int* indexReaded) {
   return val_long;
 }
 Local<Value> Read(char* bf, int* indexReaded, BYTE type, Local<Value> prop) {
+  Isolate* isolate = Isolate::GetCurrent();
   Local<Value> result;
   switch(type) {
     case TYPE_BOOL:
@@ -321,8 +319,11 @@ Local<Value> Read(char* bf, int* indexReaded, BYTE type, Local<Value> prop) {
       *indexReaded += 1;
       break;
     case TYPE_INT16:
-      result = Nan::New(bf[*indexReaded] + (bf[*indexReaded + 1]<<8));
-      *indexReaded += 2;
+      {
+        short val_short = bf[*indexReaded] + (bf[*indexReaded + 1]<<8);
+        result = Nan::New(val_short);
+        *indexReaded += 2;
+      }
       break;
     case TYPE_INT:
       result = Nan::New(ReadInt(bf, indexReaded));
@@ -346,6 +347,68 @@ Local<Value> Read(char* bf, int* indexReaded, BYTE type, Local<Value> prop) {
         double* p_double = (double*)(&val_long);
         result = Nan::New(*p_double);
         *indexReaded += 8;
+      }
+      break;
+    case TYPE_STRING:
+      {
+        const int str_len = Read(bf, indexReaded, TYPE_INT, prop)->Int32Value();
+        
+        char* str = (char*)malloc(str_len + 1);
+        strncpy(str, bf + *indexReaded, str_len);
+        // for (unsigned int i = 0; i<str_len; i++) {
+        //   str[i] = bf[*indexReaded + i];
+        // }
+        str[str_len] = '\0';  // write end of string
+        result = Nan::New<String>(str).ToLocalChecked();
+        *indexReaded += str_len;
+      }
+      break;
+    case TYPE_OBJECT:
+      {
+        Local<Object> val_obj = Object::New(isolate);
+        Local<Array> propArr = Local<Array>::Cast(prop);
+        for (unsigned int i = 0; i<propArr->Length(); i++) {
+          Local<Object> propVal = propArr->Get(i)->ToObject();
+          BYTE typeOfProp = GetValue(propVal, "type")->NumberValue();
+          Local<Value> propOfProp = GetValue(propVal, "prop");
+          Local<Value> nameOfProp = GetValue(propVal, "name");
+
+          val_obj->Set(nameOfProp, Read(bf, indexReaded, typeOfProp, propOfProp));
+        }
+        result = val_obj;
+      }
+      break;
+    case TYPE_ARRAY:
+      {
+        const int arr_len = Read(bf, indexReaded, TYPE_INT16, prop)->Int32Value();
+        BYTE type_of_arr = GetValue(prop->ToObject(), "type")->NumberValue();
+        Local<Array> arr = Array::New(isolate);
+        for (unsigned int i = 0; i<arr_len; i++) {
+          arr->Set(i, Read(bf, indexReaded, type_of_arr, prop));
+        }
+        result = arr;
+      }
+      break;
+    case TYPE_ARRAY_BOJECT:
+      {
+        const int data_len = Read(bf, indexReaded, TYPE_INT16, prop)->Int32Value();
+        Local<Array> arr = Array::New(isolate);
+        for (unsigned int i = 0; i<data_len; i++) {
+          arr->Set(i, Read(bf, indexReaded, TYPE_OBJECT, prop));
+        }
+        result = arr;
+      }
+      break;
+    case TYPE_BUFFER:
+      {
+        const int bf_len = Read(bf, indexReaded, TYPE_INT16, prop)->Int32Value();
+        char* bf_val = (char*)malloc(bf_len);
+        // strncpy(bf_val, bf + *indexReaded, bf_len);
+        for (unsigned int i = 0; i<bf_len; i++) {
+          bf_val[i] = bf[*indexReaded + i];
+        }
+        result = Nan::NewBuffer(bf_val, bf_len).ToLocalChecked();
+        *indexReaded += bf_len;
       }
       break;
   }
