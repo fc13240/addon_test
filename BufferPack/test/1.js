@@ -68,6 +68,18 @@ describe('#create', () => {
         // console.log(b);
         expect(b).deep.equal(a);
     });
+    it('byte 负数', () => {
+        let conf = {
+            type: TYPE_BYTE
+        }
+
+        let val = -100;
+        let a = new BufferPackLib(conf).create(val);
+        let b = BufferPackAddon.create(conf, val);
+        // console.log(a);
+        // console.log(b);
+        expect(b).deep.equal(a);
+    });
     it('bool', () => {
         let conf = {
             type: TYPE_BOOL
@@ -222,6 +234,19 @@ describe('#parse', () => {
         }
 
         let val = 100;
+        let bf = new BufferPackLib(conf).create(val);
+        let a = new BufferPackLib(conf).parse(bf);
+        let b = BufferPackAddon.parse(conf, bf);
+        // console.log(a);
+        // console.log(b);
+        expect(a).equal(b);
+    });
+    it('byte 负数', () => {
+        let conf = {
+            type: TYPE_BYTE
+        }
+
+        let val = -100;
         let bf = new BufferPackLib(conf).create(val);
         let a = new BufferPackLib(conf).parse(bf);
         let b = BufferPackAddon.parse(conf, bf);
