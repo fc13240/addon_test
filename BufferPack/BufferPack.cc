@@ -1,4 +1,5 @@
 #include <nan.h>
+#include <climits>
 
 using namespace std;
 using namespace Nan;
@@ -42,10 +43,6 @@ const char* ToStr(Local<Value> valStr) {
   // return *value ? *value : "<string conversion failed>";
 }
 
-void ThrowError(Isolate* isolate, const char* msg) {
-  isolate->ThrowException(Exception::TypeError(
-    String::NewFromUtf8(isolate, msg)));
-}
 void WriteInt(char* bf, int* offset, int val) {
   // printf("%d %d %d %d\n", strlen(bf), *offset + 4, sizeof(bf), sizeof(*bf));
   // int size = strlen(bf);
@@ -134,7 +131,7 @@ void WriteString(char* bf, int* offset, const char* valStr) {
   }
   *offset += len;
 }
-void WriteBuffer(char* bf, int* offset, char* bfWrite, long size) {
+void WriteBuffer(char* bf, int* offset, char* bfWrite, unsigned long size) {
   WriteInt16(bf, offset, size);
   for (unsigned int i = 0; i<size; i++) {
     bf[*offset+i] = bfWrite[i];
@@ -143,17 +140,17 @@ void WriteBuffer(char* bf, int* offset, char* bfWrite, long size) {
 }
 
 void Write(char* bfResult, int* indexWrited, Local<Value> data, BYTE type, Local<Value> prop) {
-  switch(type) {
+    switch(type) {
     case TYPE_BYTE:
       if (data->IsInt32()) {
         long val_byte = data->NumberValue();
         if (val_byte < -128 || val_byte > 127) {
-          // ThrowError(isolate, "not byte");
+          Nan::ThrowError("not byte");
         } else {
           WriteByte(bfResult, indexWrited, val_byte);
         }
       } else {
-        // ThrowError(isolate, "not byte");
+        Nan::ThrowError("not byte");
       }
       break;
     case TYPE_BOOL:
@@ -165,32 +162,54 @@ void Write(char* bfResult, int* indexWrited, Local<Value> data, BYTE type, Local
         if (int16_val >= -32768 && int16_val <= 32767) {
           WriteInt16(bfResult, indexWrited, int16_val);
         } else {
-          // ThrowError(isolate, "not int16");
+          Nan::ThrowError("not in Integer16 range");
         }
       } else {
-        // ThrowError(isolate, "not int16");
+        Nan::ThrowError("not int16");
       }
       break;
     case TYPE_INT:
       if (data->IsInt32()) {
         WriteInt(bfResult, indexWrited, data->Int32Value());
       } else {
-        // ThrowError(isolate, "not int32");
+        Nan::ThrowError("not a Integer");
       }
       break;
     case TYPE_FLOAT:
       if (data->IsNumber()) {
-        WriteFloat(bfResult, indexWrited, data->NumberValue());
+        float val_float = data->NumberValue();
+        if (val_float >= -3.40E+38 && val_float <= 3.40E+38) {
+          WriteFloat(bfResult, indexWrited, val_float);
+        } else {
+          Nan::ThrowError("not in Float range");
+        }
+      } else {
+        Nan::ThrowError("not a Float");
       }
       break;
     case TYPE_DOUBLE:
       if (data->IsNumber()) {
-        WriteDouble(bfResult, indexWrited, data->NumberValue());
+        double val_double = data->NumberValue();
+        if (val_double >= -1.79E+308 && val_double <= 1.79E+308) {
+          WriteDouble(bfResult, indexWrited, val_double);
+        } else {
+          Nan::ThrowError("not in Double range");
+        }
+      } else {
+        Nan::ThrowError("not a Double");
       }
       break;
     case TYPE_LONG:
       if (data->IsNumber()) {
-        WriteLong(bfResult, indexWrited, data->IntegerValue());
+        double val_long = data->NumberValue();
+        
+        if (val_long >= LLONG_MIN && val_long <= LLONG_MAX) {
+          WriteLong(bfResult, indexWrited, data->IntegerValue());
+        } else {
+          Nan::ThrowError("not in Long range");
+        }
+      } else {
+        Nan::ThrowError("not a Long");
       }
       break;
     case TYPE_STRING:
@@ -200,45 +219,59 @@ void Write(char* bfResult, int* indexWrited, Local<Value> data, BYTE type, Local
         const char* val_str = name.c_str();
 
         WriteString(bfResult, indexWrited, val_str);
+      } else {
+        // if (data->IsNumber()) {
+        //   std::string str = std::to_string(data->NumberValue());
+        //   const char* val_str = str.c_str();
+        //   WriteString(bfResult, indexWrited, val_str);
+        // } else {
+          Nan::ThrowError("not a String");
+        // }
       }
       break;
     case TYPE_OBJECT:
-      if (prop->IsArray()) {
-        Local<Array> propArr = Local<Array>::Cast(prop);
-        for (unsigned int i = 0; i<propArr->Length(); i++) {
-            Local<Object> propVal = propArr->Get(i)->ToObject();
-            Local<Value> propOfProp = GetValue(propVal, "prop");
-            BYTE typeOfProp = GetValue(propVal, "type")->NumberValue();
-            Local<Value> nameOfProp = GetValue(propVal, "name");
-            Nan::Utf8String nan_string(nameOfProp);
-            std::string nameStr(*nan_string);
-            const char* name = nameStr.c_str();
-            // printf("name = %s, type = %d\n", name, typeOfProp);
-            Local<Value> valOfData = GetValue(data->ToObject(), name);
-            Write(bfResult, indexWrited, valOfData, typeOfProp, propOfProp);
+      if (data->IsObject()) {
+        if (prop->IsArray()) {
+          Local<Array> propArr = Local<Array>::Cast(prop);
+          for (unsigned int i = 0; i<propArr->Length(); i++) {
+              Local<Object> propVal = propArr->Get(i)->ToObject();
+              Local<Value> propOfProp = GetValue(propVal, "prop");
+              BYTE typeOfProp = GetValue(propVal, "type")->NumberValue();
+              Local<Value> nameOfProp = GetValue(propVal, "name");
+              Nan::Utf8String nan_string(nameOfProp);
+              std::string nameStr(*nan_string);
+              const char* name = nameStr.c_str();
+              // printf("name = %s, type = %d\n", name, typeOfProp);
+              Local<Value> valOfData = GetValue(data->ToObject(), name);
+              Write(bfResult, indexWrited, valOfData, typeOfProp, propOfProp);
+          }
         }
+      } else {
+        Nan::ThrowError("not a Object");
       }
       break;
     case TYPE_ARRAY:
       if (data->IsArray()) {
         Local<Array> dataArr = Local<Array>::Cast(data);
-        int lenDataArr = dataArr->Length();
+        unsigned int lenDataArr = dataArr->Length();
         WriteInt16(bfResult, indexWrited, lenDataArr);
 
         BYTE typeOfData = GetValue(prop->ToObject(), "type")->NumberValue();
         for (unsigned int i = 0; i<lenDataArr; i++) {
           Write(bfResult, indexWrited, dataArr->Get(i), typeOfData, prop);
         }
+      } else {
+        Nan::ThrowError("not a String");
       }
       break;
     case TYPE_ARRAY_BOJECT:
       if (data->IsArray()) {
         Local<Array> dataArr = Local<Array>::Cast(data);
-        int lenDataArr = dataArr->Length();
+        unsigned int lenDataArr = dataArr->Length();
         WriteInt16(bfResult, indexWrited, lenDataArr);
 
         Local<Array> propArr = Local<Array>::Cast(prop);
-        int lenPropArr = propArr->Length();
+        unsigned int lenPropArr = propArr->Length();
         for (unsigned int i = 0; i<lenDataArr; i++) {
           Local<Object> val = dataArr->Get(i)->ToObject();
           if (val->IsObject()) {
@@ -253,6 +286,8 @@ void Write(char* bfResult, int* indexWrited, Local<Value> data, BYTE type, Local
               Local<Value> pp = GetValue(p, "prop");
               Write(bfResult, indexWrited, v, t, pp);
             }
+          } else {
+            Nan::ThrowError("not a ArrayObject");
           }
         }
       }
@@ -262,6 +297,8 @@ void Write(char* bfResult, int* indexWrited, Local<Value> data, BYTE type, Local
         char* bf = node::Buffer::Data(data);
         long sizeOfBf = node::Buffer::Length(data);
         WriteBuffer(bfResult, indexWrited, bf, sizeOfBf);
+      } else {
+        Nan::ThrowError("not a Buffer");
       }
       break;
   }
@@ -269,6 +306,9 @@ void Write(char* bfResult, int* indexWrited, Local<Value> data, BYTE type, Local
 void Create(const Nan::FunctionCallbackInfo<v8::Value>& info) {
   Isolate* isolate = info.GetIsolate();
   if (info.Length() == 2) {
+    if (info[1]->IsNull() || info[1]->IsUndefined()) {
+      Nan::ThrowError("no data to create!");
+    }
     Local<Object> conf = info[0]->ToObject();
     BYTE type = GetValue(conf, "type")->NumberValue();
     Local<Value> prop = GetValue(conf, "prop");
@@ -280,7 +320,7 @@ void Create(const Nan::FunctionCallbackInfo<v8::Value>& info) {
     // info.GetReturnValue().Set(Nan::New<Boolean>(type));
     info.GetReturnValue().Set(Nan::NewBuffer(bfResult, indexWrited).ToLocalChecked());
   } else {
-    ThrowError(isolate, "param error");
+    Nan::ThrowError("param error");
   }
 }
 
@@ -343,8 +383,11 @@ Local<Value> Read(char* bf, int* indexReaded, BYTE type, Local<Value> prop) {
       break;
     case TYPE_DOUBLE:
       {
-        long long val_long = ReadLong(bf, indexReaded);
-        double* p_double = (double*)(&val_long);
+        char* val_double = new char[8];
+        strncpy(val_double, bf + *indexReaded, 8);
+        double* p_double = (double*)val_double;
+        // long long val_long = ReadLong(bf, indexReaded);
+        // double* p_double = (double*)(&val_long);
         result = Nan::New(*p_double);
         *indexReaded += 8;
       }
@@ -380,7 +423,7 @@ Local<Value> Read(char* bf, int* indexReaded, BYTE type, Local<Value> prop) {
       break;
     case TYPE_ARRAY:
       {
-        const int arr_len = Read(bf, indexReaded, TYPE_INT16, prop)->Int32Value();
+        const unsigned int arr_len = Read(bf, indexReaded, TYPE_INT16, prop)->Int32Value();
         BYTE type_of_arr = GetValue(prop->ToObject(), "type")->NumberValue();
         Local<Array> arr = Array::New(isolate);
         for (unsigned int i = 0; i<arr_len; i++) {
@@ -391,7 +434,7 @@ Local<Value> Read(char* bf, int* indexReaded, BYTE type, Local<Value> prop) {
       break;
     case TYPE_ARRAY_BOJECT:
       {
-        const int data_len = Read(bf, indexReaded, TYPE_INT16, prop)->Int32Value();
+        const unsigned int data_len = Read(bf, indexReaded, TYPE_INT16, prop)->Int32Value();
         Local<Array> arr = Array::New(isolate);
         for (unsigned int i = 0; i<data_len; i++) {
           arr->Set(i, Read(bf, indexReaded, TYPE_OBJECT, prop));
@@ -401,7 +444,7 @@ Local<Value> Read(char* bf, int* indexReaded, BYTE type, Local<Value> prop) {
       break;
     case TYPE_BUFFER:
       {
-        const int bf_len = Read(bf, indexReaded, TYPE_INT16, prop)->Int32Value();
+        const unsigned int bf_len = Read(bf, indexReaded, TYPE_INT16, prop)->Int32Value();
         char* bf_val = (char*)malloc(bf_len);
         // strncpy(bf_val, bf + *indexReaded, bf_len);
         for (unsigned int i = 0; i<bf_len; i++) {
@@ -415,8 +458,10 @@ Local<Value> Read(char* bf, int* indexReaded, BYTE type, Local<Value> prop) {
   return result;
 }
 void Parse(const Nan::FunctionCallbackInfo<v8::Value>& info) {
-  Isolate* isolate = info.GetIsolate();
   if (info.Length() == 2) {
+    if (info[1]->IsNull() || info[1]->IsUndefined()) {
+      Nan::ThrowError("no data to parse!");
+    }
     Local<Object> conf = info[0]->ToObject();
     BYTE type = GetValue(conf, "type")->NumberValue();
     Local<Value> prop = GetValue(conf, "prop");
@@ -426,7 +471,7 @@ void Parse(const Nan::FunctionCallbackInfo<v8::Value>& info) {
 
     info.GetReturnValue().Set(result);
   } else {
-    ThrowError(isolate, "param error");
+    Nan::ThrowError("param error");
   }
 }
 

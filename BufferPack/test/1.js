@@ -286,7 +286,7 @@ describe('#parse', () => {
             type: TYPE_DOUBLE
         }
 
-        let val = 3.14;
+        let val = 1.1000002365;
         let bf = new BufferPackLib(conf).create(val);
         let a = new BufferPackLib(conf).parse(bf);
         let b = BufferPackAddon.parse(conf, bf);

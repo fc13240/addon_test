@@ -1,7 +1,9 @@
 {
     "name": "addon_test",
     "scripts": {
-        "test": "./node_modules/.bin/mocha -c --recursive BufferPack/test/"
+        "test": "./node_modules/.bin/mocha -c --recursive BufferPack/test/",
+        "test1": "./node_modules/.bin/mocha -c --recursive BufferPack/test/1.js",
+        "test2": "./node_modules/.bin/mocha -c --recursive BufferPack/test/2.js"
     },
     "dependencies": {
         "chai": "^3.4.1",
