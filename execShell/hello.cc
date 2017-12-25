@@ -18,8 +18,10 @@ void Method(const Nan::FunctionCallbackInfo<v8::Value>& info) {
     fp = popen("curl http://tonny-zhang.github.io/info.php", "r");
   #endif
   // fp = popen("curl http://www.baidu.com", "r");
-  fgets(buffer, 1024, fp);
-  printf("%s", buffer);
+  while(fgets(buffer, sizeof(buffer), fp)) {
+    printf("%s", buffer);
+  }
+  
   #ifdef _WIN32
     _pclose(fp);
   #else
