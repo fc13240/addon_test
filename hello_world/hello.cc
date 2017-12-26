@@ -3,6 +3,7 @@ using namespace std;
 using namespace Nan;
 using namespace v8;
 #ifndef _WIN32
+  #include <malloc.h>
   #define _msize(x) malloc_usable_size(x)
 #endif
 
