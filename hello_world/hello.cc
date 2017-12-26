@@ -2,6 +2,10 @@
 using namespace std;
 using namespace Nan;
 using namespace v8;
+#ifndef _WIN32
+  #define _msize(x) malloc_usable_size(x)
+#endif
+
 const char* ToStr(Local<Value> valStr) {
   // Nan::Utf8String nan_string(valStr);
   // std::string val_str(*nan_string);
