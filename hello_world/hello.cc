@@ -46,6 +46,14 @@ void Method(const Nan::FunctionCallbackInfo<v8::Value>& info) {
   TestPoint(&str);
   printf("str_new = %s\n", str);
 
+  char* str1 = new char[10];
+  printf("len of str = %d, %d, %d\n", strlen(str1), sizeof(str1), _msize(str1));
+  str1[0] = 'a';
+  str1[1] = 'a';
+  str1[2] = 'a';
+  str1[3] = '\0';
+  printf("len of str = %d, %d, %d\n", strlen(str1), sizeof(str1), sizeof(str1)/sizeof(char));
+
   info.GetReturnValue().Set(Nan::New("world").ToLocalChecked());
 }
 
