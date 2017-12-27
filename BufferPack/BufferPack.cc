@@ -25,7 +25,7 @@ const BYTE TYPE_BUFFER = 103;
 const long long BIT32 = 4294967296;
 const long long BIT24 = 16777216;
 
-const int INIT_SIZE = 1024 * 100;
+const int INIT_SIZE = 10240;
 Local<Value> GetValue(Local<Object> obj, const char* key) {
   return Nan::Get(obj, Nan::New<String>(key).ToLocalChecked()).ToLocalChecked();
 }
@@ -43,7 +43,20 @@ const char* ToStr(Local<Value> valStr) {
   // return *value ? *value : "<string conversion failed>";
 }
 
-void WriteInt(char* bf, int* offset, int val) {
+void ResizeBf(char** bf, int* sizeOfBf, int* indexWrited, int sizeOfData) {
+  printf("indexWrited = %d, sizeOfData = %d, sizeOfBf = %d\n", *indexWrited, sizeOfData, *sizeOfBf);
+  // if (*indexWrited + sizeOfData > *sizeOfBf) {
+  //   int size_new = *sizeOfBf + INIT_SIZE;
+  //   // char* bf_new = (char*)malloc(size_new);
+  //   char* bf_new = new char[size_new];
+  //   strncpy(bf_new, *bf, *sizeOfBf);
+
+  //   *bf = bf_new;
+  //   *sizeOfBf = size_new;
+  // }
+}
+void WriteInt(char** bf, int* sizeOfBf, int* offset, int val) {
+  ResizeBf(bf, sizeOfBf, offset, 4);
   // printf("%d %d %d %d\n", strlen(bf), *offset + 4, sizeof(bf), sizeof(*bf));
   // int size = strlen(bf);
   // if (size < *offset + 4) {
@@ -51,29 +64,37 @@ void WriteInt(char* bf, int* offset, int val) {
   //   strcpy(bfNew, bf);
   //   bf = bfNew;
   // }
-  bf[*offset] = val & 0xff;
-  bf[*offset+1] = (val>>8)  & 0xff;
-  bf[*offset+2] = (val>>16) & 0xff;
-  bf[*offset+3] = (val>>24) & 0xff;
+  *bf[*offset] = val & 0xff;
+  *bf[*offset+1] = (val>>8)  & 0xff;
+  *bf[*offset+2] = (val>>16) & 0xff;
+  *bf[*offset+3] = (val>>24) & 0xff;
 
+  printf("WriteInt result = %s, %d, %02X %02X %02X %02X\n", *bf, *offset, *bf[*offset], *bf[*offset+1], *bf[*offset+2], *bf[*offset+3]);
   *offset += 4;
 }
-void WriteInt16(char* bf, int* offset, int val) {
-  
-  bf[*offset] = val & 0xff;
-  bf[*offset+1] = (val>>8)  & 0xff;
+void WriteInt16(char** bf, int* sizeOfBf, int* offset, int val) {
+  printf("WriteInt16 sizeOfBfResult = %d, val = %d\n", *sizeOfBf, val);
+  ResizeBf(bf, sizeOfBf, offset, 2);
 
+  *bf[*offset] = val & 0xff;
+  *bf[*offset+1] = (val>>8) & 0xff;
+  *bf[*offset+2] = (val>>16) & 0xff;
+  *bf[*offset+3] = (val>>24) & 0xff;
+
+  printf("writeint16 result = %s, %d, %02X %02X\n", *bf, *offset, *bf[*offset], *bf[*offset+1]);
   *offset += 2;
 }
-void WriteLong(char* bf, int* offset, long long val) {
-  bf[*offset] = val & 0xff;
-  bf[*offset+1] = (val>>8)  & 0xff;
-  bf[*offset+2] = (val>>16) & 0xff;
-  bf[*offset+3] = (val>>24) & 0xff;
-  bf[*offset+4] = (val>>32) & 0xff;
-  bf[*offset+5] = (val>>40)  & 0xff;
-  bf[*offset+6] = (val>>48) & 0xff;
-  bf[*offset+7] = (val>>56) & 0xff;
+void WriteLong(char** bf, int* sizeOfBf, int* offset, long long val) {
+  ResizeBf(bf, sizeOfBf, offset, 8);
+
+  *bf[*offset] = val & 0xff;
+  *bf[*offset+1] = (val>>8)  & 0xff;
+  *bf[*offset+2] = (val>>16) & 0xff;
+  *bf[*offset+3] = (val>>24) & 0xff;
+  *bf[*offset+4] = (val>>32) & 0xff;
+  *bf[*offset+5] = (val>>40)  & 0xff;
+  *bf[*offset+6] = (val>>48) & 0xff;
+  *bf[*offset+7] = (val>>56) & 0xff;
   *offset += 8;
 
   //LE
@@ -86,20 +107,26 @@ void WriteLong(char* bf, int* offset, long long val) {
   // *offset += 8;
 
 }
-void WriteByte(char* bf, int* offset, int val) {
-  bf[*offset] = val & 0xff;
+void WriteByte(char** bf, int* sizeOfBf, int* offset, int val) {
+  ResizeBf(bf, sizeOfBf, offset, 1);
+
+  *bf[*offset] = val & 0xff;
   *offset += 1;
 }
-void WriteFloat(char* bf, int* offset, float valFloat) {
+void WriteFloat(char** bf, int* sizeOfBf, int* offset, float valFloat) {
+  ResizeBf(bf, sizeOfBf, offset, 4);
+
   unsigned int* val = (unsigned int*)(&valFloat); 
-  bf[*offset] = *val & 0xff;
-  bf[*offset+1] = (*val>>8)  & 0xff;
-  bf[*offset+2] = (*val>>16) & 0xff;
-  bf[*offset+3] = (*val>>24) & 0xff;
+  *bf[*offset] = *val & 0xff;
+  *bf[*offset+1] = (*val>>8)  & 0xff;
+  *bf[*offset+2] = (*val>>16) & 0xff;
+  *bf[*offset+3] = (*val>>24) & 0xff;
 
   *offset += 4;
 }
-void WriteDouble(char* bf, int* offset, double valDouble) {
+void WriteDouble(char** bf, int* sizeOfBf, int* offset, double valDouble) {
+  ResizeBf(bf, sizeOfBf, offset, 8);
+
   unsigned long long* val = (unsigned long long*)(&valDouble); 
 
   // bf[*offset] = *val & 0xff;
@@ -116,51 +143,55 @@ void WriteDouble(char* bf, int* offset, double valDouble) {
   int end = *offset + 8;
   int start = *offset;
   while(start < end) {
-    bf[start++] = *val & 255;
+    *bf[start++] = *val & 255;
     *val /= 256;
   }
   *offset += 8;
-
 }
-void WriteString(char* bf, int* offset, const char* valStr) {
+void WriteString(char** bf, int* sizeOfBf, int* offset, const char* valStr) {
   int len = strlen(valStr);
+  ResizeBf(bf, sizeOfBf, offset, len + 4);
+
   // printf("str = %s, len = %d\n", valStr, len);
-  WriteInt(bf, offset, len);
+  WriteInt(bf, sizeOfBf, offset, len);
   for (int i = 0; i < len; i++) {
-    bf[*offset+i] = valStr[i];
+    *bf[*offset+i] = valStr[i];
   }
   *offset += len;
 }
-void WriteBuffer(char* bf, int* offset, char* bfWrite, unsigned long size) {
-  WriteInt16(bf, offset, size);
+void WriteBuffer(char** bf, int* sizeOfBf, int* offset, char* bfWrite, unsigned long size) {
+  ResizeBf(bf, sizeOfBf, offset, size + 2);
+
+  WriteInt16(bf, sizeOfBf, offset, size);
   for (unsigned int i = 0; i<size; i++) {
-    bf[*offset+i] = bfWrite[i];
+    *bf[*offset+i] = bfWrite[i];
   }
   *offset += size;
 }
 
-void Write(char* bfResult, int* indexWrited, Local<Value> data, BYTE type, Local<Value> prop) {
-    switch(type) {
+void Write(char** bfResult, int* sizeOfBfResult, int* indexWrited, Local<Value> data, BYTE type, Local<Value> prop) {
+  printf("write sizeOfBfResult = %d\n", *sizeOfBfResult);
+  switch(type) {
     case TYPE_BYTE:
       if (data->IsInt32()) {
         long val_byte = data->NumberValue();
         if (val_byte < -128 || val_byte > 127) {
           Nan::ThrowError("not byte");
         } else {
-          WriteByte(bfResult, indexWrited, val_byte);
+          WriteByte(bfResult, sizeOfBfResult, indexWrited, val_byte);
         }
       } else {
         Nan::ThrowError("not byte");
       }
       break;
     case TYPE_BOOL:
-      WriteByte(bfResult, indexWrited, data->BooleanValue()?1: 0);
+      WriteByte(bfResult, sizeOfBfResult, indexWrited, data->BooleanValue()?1: 0);
       break;
     case TYPE_INT16:
       if (data->IsInt32()) {
         int int16_val = data->Int32Value();
         if (int16_val >= -32768 && int16_val <= 32767) {
-          WriteInt16(bfResult, indexWrited, int16_val);
+          WriteInt16(bfResult, sizeOfBfResult, indexWrited, int16_val);
         } else {
           Nan::ThrowError("not in Integer16 range");
         }
@@ -170,7 +201,7 @@ void Write(char* bfResult, int* indexWrited, Local<Value> data, BYTE type, Local
       break;
     case TYPE_INT:
       if (data->IsInt32()) {
-        WriteInt(bfResult, indexWrited, data->Int32Value());
+        WriteInt(bfResult, sizeOfBfResult, indexWrited, data->Int32Value());
       } else {
         Nan::ThrowError("not a Integer");
       }
@@ -179,7 +210,7 @@ void Write(char* bfResult, int* indexWrited, Local<Value> data, BYTE type, Local
       if (data->IsNumber()) {
         float val_float = data->NumberValue();
         if (val_float >= -3.40E+38 && val_float <= 3.40E+38) {
-          WriteFloat(bfResult, indexWrited, val_float);
+          WriteFloat(bfResult, sizeOfBfResult, indexWrited, val_float);
         } else {
           Nan::ThrowError("not in Float range");
         }
@@ -191,7 +222,7 @@ void Write(char* bfResult, int* indexWrited, Local<Value> data, BYTE type, Local
       if (data->IsNumber()) {
         double val_double = data->NumberValue();
         if (val_double >= -1.79E+308 && val_double <= 1.79E+308) {
-          WriteDouble(bfResult, indexWrited, val_double);
+          WriteDouble(bfResult, sizeOfBfResult, indexWrited, val_double);
         } else {
           Nan::ThrowError("not in Double range");
         }
@@ -204,7 +235,7 @@ void Write(char* bfResult, int* indexWrited, Local<Value> data, BYTE type, Local
         double val_long = data->NumberValue();
         
         if (val_long >= LLONG_MIN && val_long <= LLONG_MAX) {
-          WriteLong(bfResult, indexWrited, data->IntegerValue());
+          WriteLong(bfResult, sizeOfBfResult, indexWrited, data->IntegerValue());
         } else {
           Nan::ThrowError("not in Long range");
         }
@@ -218,7 +249,7 @@ void Write(char* bfResult, int* indexWrited, Local<Value> data, BYTE type, Local
         std::string name(*nan_string);
         const char* val_str = name.c_str();
 
-        WriteString(bfResult, indexWrited, val_str);
+        WriteString(bfResult, sizeOfBfResult, indexWrited, val_str);
       } else {
         // if (data->IsNumber()) {
         //   std::string str = std::to_string(data->NumberValue());
@@ -243,7 +274,7 @@ void Write(char* bfResult, int* indexWrited, Local<Value> data, BYTE type, Local
               const char* name = nameStr.c_str();
               // printf("name = %s, type = %d\n", name, typeOfProp);
               Local<Value> valOfData = GetValue(data->ToObject(), name);
-              Write(bfResult, indexWrited, valOfData, typeOfProp, propOfProp);
+              Write(bfResult, sizeOfBfResult, indexWrited, valOfData, typeOfProp, propOfProp);
           }
         }
       } else {
@@ -254,11 +285,11 @@ void Write(char* bfResult, int* indexWrited, Local<Value> data, BYTE type, Local
       if (data->IsArray()) {
         Local<Array> dataArr = Local<Array>::Cast(data);
         unsigned int lenDataArr = dataArr->Length();
-        WriteInt16(bfResult, indexWrited, lenDataArr);
+        WriteInt16(bfResult, sizeOfBfResult, indexWrited, lenDataArr);
 
         BYTE typeOfData = GetValue(prop->ToObject(), "type")->NumberValue();
         for (unsigned int i = 0; i<lenDataArr; i++) {
-          Write(bfResult, indexWrited, dataArr->Get(i), typeOfData, prop);
+          Write(bfResult, sizeOfBfResult, indexWrited, dataArr->Get(i), typeOfData, prop);
         }
       } else {
         Nan::ThrowError("not a String");
@@ -268,7 +299,7 @@ void Write(char* bfResult, int* indexWrited, Local<Value> data, BYTE type, Local
       if (data->IsArray()) {
         Local<Array> dataArr = Local<Array>::Cast(data);
         unsigned int lenDataArr = dataArr->Length();
-        WriteInt16(bfResult, indexWrited, lenDataArr);
+        WriteInt16(bfResult, sizeOfBfResult, indexWrited, lenDataArr);
 
         Local<Array> propArr = Local<Array>::Cast(prop);
         unsigned int lenPropArr = propArr->Length();
@@ -284,7 +315,7 @@ void Write(char* bfResult, int* indexWrited, Local<Value> data, BYTE type, Local
               const char* name = nameStr.c_str();
               Local<Value> v = GetValue(val, name);
               Local<Value> pp = GetValue(p, "prop");
-              Write(bfResult, indexWrited, v, t, pp);
+              Write(bfResult, sizeOfBfResult, indexWrited, v, t, pp);
             }
           } else {
             Nan::ThrowError("not a ArrayObject");
@@ -296,7 +327,7 @@ void Write(char* bfResult, int* indexWrited, Local<Value> data, BYTE type, Local
       if (data->IsUint8Array()) {
         char* bf = node::Buffer::Data(data);
         long sizeOfBf = node::Buffer::Length(data);
-        WriteBuffer(bfResult, indexWrited, bf, sizeOfBf);
+        WriteBuffer(bfResult, sizeOfBfResult, indexWrited, bf, sizeOfBf);
       } else {
         Nan::ThrowError("not a Buffer");
       }
@@ -312,12 +343,21 @@ void Create(const Nan::FunctionCallbackInfo<v8::Value>& info) {
     Local<Object> conf = info[0]->ToObject();
     BYTE type = GetValue(conf, "type")->NumberValue();
     Local<Value> prop = GetValue(conf, "prop");
-    char* bfResult = (char *)malloc(INIT_SIZE);
+    int sizeOfBfResult = INIT_SIZE;
+    // char* bfResult = (char *)malloc(sizeOfBfResult);
+    char* bfResult = new char(sizeOfBfResult);
     int indexWrited = 0;
     // printf("type = %d, val = %lld\n", type, info[1]->NumberValue());
     
-    Write(bfResult, &indexWrited, info[1], type, prop);
+    printf("sizeOfBfResult = %d\n", sizeOfBfResult);
+    Write(&bfResult, &sizeOfBfResult, &indexWrited, info[1], type, prop);
+    bfResult[indexWrited + 1] = '\0';
     // info.GetReturnValue().Set(Nan::New<Boolean>(type));
+    printf("result = %s, %d, %d %d\n", bfResult, indexWrited, sizeOfBfResult, _msize(bfResult));
+    for (int i = 0; i<indexWrited; i++) {
+      printf("%02X ", bfResult[i]);
+    }
+    printf("\n");
     info.GetReturnValue().Set(Nan::NewBuffer(bfResult, indexWrited).ToLocalChecked());
   } else {
     Nan::ThrowError("param error");
@@ -396,7 +436,8 @@ Local<Value> Read(char* bf, int* indexReaded, BYTE type, Local<Value> prop) {
       {
         const int str_len = Read(bf, indexReaded, TYPE_INT, prop)->Int32Value();
         
-        char* str = (char*)malloc(str_len + 1);
+        // char* str = (char*)malloc(str_len + 1);
+        char* str = new char[str_len + 1];
         strncpy(str, bf + *indexReaded, str_len);
         // for (unsigned int i = 0; i<str_len; i++) {
         //   str[i] = bf[*indexReaded + i];
@@ -445,7 +486,8 @@ Local<Value> Read(char* bf, int* indexReaded, BYTE type, Local<Value> prop) {
     case TYPE_BUFFER:
       {
         const unsigned int bf_len = Read(bf, indexReaded, TYPE_INT16, prop)->Int32Value();
-        char* bf_val = (char*)malloc(bf_len);
+        // char* bf_val = (char*)malloc(bf_len);
+        char* bf_val = new char[bf_len];
         // strncpy(bf_val, bf + *indexReaded, bf_len);
         for (unsigned int i = 0; i<bf_len; i++) {
           bf_val[i] = bf[*indexReaded + i];

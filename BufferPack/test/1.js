@@ -25,11 +25,11 @@ describe('#create', () => {
             type: TYPE_INT16
         }
 
-        let val = 100;
+        let val = 1;
         let a = new BufferPackLib(conf).create(val);
         let b = BufferPackAddon.create(conf, val);
-        // console.log(a);
-        // console.log(b);
+        console.log(a);
+        console.log(b);
         expect(b).deep.equal(a);
     });
     it('int', () => {
@@ -40,8 +40,8 @@ describe('#create', () => {
         let val = 100;
         let a = new BufferPackLib(conf).create(val);
         let b = BufferPackAddon.create(conf, val);
-        // console.log(a);
-        // console.log(b);
+        console.log(a);
+        console.log(b);
         expect(b).deep.equal(a);
     });
     it('long', () => {
@@ -92,7 +92,7 @@ describe('#create', () => {
         // console.log(b);
         expect(b).deep.equal(a);
     });
-    it('string', () => {
+    it.only('string', () => {
         let conf = {
             type: TYPE_STRING
         }
