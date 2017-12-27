@@ -25,7 +25,7 @@ const BYTE TYPE_BUFFER = 103;
 const long long BIT32 = 4294967296;
 const long long BIT24 = 16777216;
 
-const int INIT_SIZE = 10124;
+const int INIT_SIZE = 1024 * 100;
 Local<Value> GetValue(Local<Object> obj, const char* key) {
   return Nan::Get(obj, Nan::New<String>(key).ToLocalChecked()).ToLocalChecked();
 }
