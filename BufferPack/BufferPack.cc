@@ -304,7 +304,6 @@ void Write(char* bfResult, int* indexWrited, Local<Value> data, BYTE type, Local
   }
 }
 void Create(const Nan::FunctionCallbackInfo<v8::Value>& info) {
-  Isolate* isolate = info.GetIsolate();
   if (info.Length() == 2) {
     if (info[1]->IsNull() || info[1]->IsUndefined()) {
       Nan::ThrowError("no data to create!");
