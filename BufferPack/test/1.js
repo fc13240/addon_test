@@ -92,7 +92,7 @@ describe('#create', () => {
         // console.log(b);
         expect(b).deep.equal(a);
     });
-    it.only('string', () => {
+    it('string', () => {
         let conf = {
             type: TYPE_STRING
         }

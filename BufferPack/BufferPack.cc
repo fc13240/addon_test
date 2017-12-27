@@ -353,7 +353,7 @@ void Create(const Nan::FunctionCallbackInfo<v8::Value>& info) {
     Write(&bfResult, &sizeOfBfResult, &indexWrited, info[1], type, prop);
     bfResult[indexWrited + 1] = '\0';
     // info.GetReturnValue().Set(Nan::New<Boolean>(type));
-    printf("result = %s, %d, %d %d\n", bfResult, indexWrited, sizeOfBfResult, _msize(bfResult));
+    printf("result = %s, %d, %d\n", bfResult, indexWrited, sizeOfBfResult);
     for (int i = 0; i<indexWrited; i++) {
       printf("%02X ", bfResult[i]);
     }
